@@ -149,8 +149,9 @@ async function executeTool(toolName, toolInput) {
           console.log(`  ✓ Command succeeded`);
           return output;
         } catch (error) {
-          console.log(`  ⚠️ Command failed (exit code ${error.status})`);
-          return `Command failed with exit code ${error.status}\n\nStdout:\n${error.stdout}\n\nStderr:\n${error.stderr}`;
+          const exitCode = error.status || error.code || 'unknown';
+          console.log(`  ⚠️ Command failed (exit code ${exitCode})`);
+          return `Command failed with exit code ${exitCode}\n\nStdout:\n${error.stdout || ''}\n\nStderr:\n${error.stderr || error.message}`;
         }
 
       case 'finish':
@@ -206,13 +207,16 @@ Implement the feature described in the GitHub issue below. You have access to to
 
 # Guidelines
 1. Start by exploring the codebase structure with list_files
-2. Read relevant files to understand existing patterns
+2. Read relevant files to understand existing patterns (if any exist)
 3. Implement the feature following the project's conventions
 4. Write tests for your implementation
-5. Run tests to verify everything works
-6. Call finish() when done
+5. Try to run tests if possible, but don't get stuck if tools aren't installed
+6. **Call finish() once files are created** - the CI will run tests separately
 
-Work iteratively - read, write, test, fix. Take your time and be thorough.`;
+**Important:** This runs in a CI environment that may not have all tools installed yet (Python, Node, etc).
+If run_command fails, it's okay - just create the files and call finish(). The GitHub Actions workflow will handle testing.
+
+Work efficiently - you have a 30-turn limit. Focus on creating quality code rather than testing it yourself.`;
 
   const messages = [
     {
