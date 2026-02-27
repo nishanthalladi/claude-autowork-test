@@ -72,36 +72,27 @@ async function getRelevantFiles() {
 async function callClaude(issueContext, projectContext) {
   console.log('🤖 Calling Claude API...');
 
-  const systemPrompt = `You are an expert Go developer implementing features for a healthcare claims management system.
+  const systemPrompt = `You are an expert software developer implementing features for this project.
 
-# Project Context
-${projectContext.claudeMd || 'No CLAUDE.md available'}
-
-# System Description
-${projectContext.systemDescription ? projectContext.systemDescription.substring(0, 5000) : 'No system description available'}
-
-# Coding Guidelines
-${projectContext.codingGuidelines ? projectContext.codingGuidelines.substring(0, 3000) : 'No coding guidelines available'}
+${projectContext.claudeMd ? `# Project Context\n${projectContext.claudeMd}\n` : ''}
+${projectContext.systemDescription ? `# System Description\n${projectContext.systemDescription.substring(0, 5000)}\n` : ''}
+${projectContext.codingGuidelines ? `# Coding Guidelines\n${projectContext.codingGuidelines.substring(0, 3000)}\n` : ''}
 
 # Your Task
-Implement the feature described in the GitHub issue below. Follow these guidelines:
+Implement the feature described in the GitHub issue below. Follow best practices for the language and framework being used.
 
-1. **Clean Architecture**: Respect the layers (domain/usecases/adapters/infrastructure)
-2. **Function Size**: Keep functions under 30 lines, extract aggressively
-3. **Testing**: Write tests for business logic and authorization
-4. **Authorization**: Always validate RBAC permissions
-5. **Error Handling**: Return proper errors, don't panic
+${projectContext.claudeMd || projectContext.codingGuidelines ? 'Follow the project guidelines above.' : 'Write clean, tested, well-structured code.'}
 
 # Output Format
 Provide your implementation as a series of file operations in this format:
 
----FILE: path/to/file.go
-\`\`\`go
+---FILE: path/to/file.ext
+\`\`\`language
 // Full file content here
 \`\`\`
 
----FILE: path/to/file_test.go
-\`\`\`go
+---FILE: path/to/test_file.ext
+\`\`\`language
 // Full test file content here
 \`\`\`
 
