@@ -1,0 +1,9 @@
+{
+  "name": "claude-automation-scripts",
+  "version": "1.0.0",
+  "description": "Claude automation scripts for GitHub Actions",
+  "private": true,
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0"
+  }
+}

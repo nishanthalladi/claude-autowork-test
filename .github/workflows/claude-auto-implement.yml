@@ -1,0 +1,152 @@
+name: Claude Auto-Implement
+
+on:
+  issues:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+
+jobs:
+  auto-implement:
+    # Only run if:
+    # 1. Issue was labeled with 'claude-implement' OR
+    # 2. Comment contains '/claude implement'
+    if: |
+      (github.event_name == 'issues' && github.event.label.name == 'claude-implement') ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/claude implement'))
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Add comment - Starting implementation
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🤖 **Claude is starting to implement this feature...**\n\nI\'ll analyze the issue, implement the changes, run tests, and create a PR shortly.'
+            })
+
+      - name: Run Claude implementation
+        id: claude
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          # Install dependencies
+          cd .github/scripts
+          npm install @anthropic-ai/sdk
+          cd ../..
+
+          # Run the automation script
+          node .github/scripts/claude-implement.js
+
+      - name: Run tests
+        id: tests
+        continue-on-error: true
+        run: |
+          echo "Running tests..."
+          go test ./... > test_results.txt 2>&1
+          TEST_EXIT_CODE=$?
+
+          # Save test results
+          echo "test_output<<EOF" >> $GITHUB_OUTPUT
+          cat test_results.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "test_exit_code=$TEST_EXIT_CODE" >> $GITHUB_OUTPUT
+
+          exit $TEST_EXIT_CODE
+
+      - name: Create Pull Request
+        if: always()
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "feat: ${{ github.event.issue.title }}"
+          branch: claude/issue-${{ github.event.issue.number }}
+          delete-branch: true
+          title: "${{ github.event.issue.title }}"
+          body: |
+            ## Automated Implementation by Claude
+
+            This PR was automatically generated to implement the feature requested in #${{ github.event.issue.number }}.
+
+            ### Issue
+            **Title:** ${{ github.event.issue.title }}
+
+            **Description:**
+            ${{ github.event.issue.body }}
+
+            ---
+
+            ### Implementation Details
+            Claude analyzed the issue and implemented the requested changes following the project's clean architecture principles.
+
+            ### Test Results
+            ${{ steps.tests.outcome == 'success' && '✅ **All tests passed!**' || '⚠️ **Tests failed or had warnings**' }}
+
+            <details>
+            <summary>Test Output</summary>
+
+            ```
+            ${{ steps.tests.outputs.test_output }}
+            ```
+
+            </details>
+
+            ---
+
+            **Please review the changes carefully before merging.**
+
+            Closes #${{ github.event.issue.number }}
+          labels: |
+            automated
+            claude-generated
+
+      - name: Add comment - Success
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const testStatus = '${{ steps.tests.outcome }}' === 'success' ? '✅ All tests passed' : '⚠️ Tests had warnings';
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🎉 **Implementation complete!**\n\nI've created a pull request with the implementation.\n\n**Test Status:** ${testStatus}\n\nPlease review the PR and merge if everything looks good.`
+            })
+
+      - name: Add comment - Failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '❌ **Implementation failed**\n\nSomething went wrong during the automated implementation. Please check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.'
+            })
