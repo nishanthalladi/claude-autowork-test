@@ -61,7 +61,7 @@ jobs:
           cd ../..
 
           # Run the automation script
-          node .github/scripts/claude-implement.js
+          node .github/scripts/claude-implement-v2.js
 
       - name: Run tests
         id: tests
